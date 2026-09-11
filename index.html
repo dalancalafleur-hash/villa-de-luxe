@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Villa Deluxe</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#d4af37">
+<style>
+  :root {
+    --or: #d4af37; --or-clair: #f0d878;
+    --bleu-nuit: #0a192f; --bleu-nuit-clair: #132a4a; --blanc: #f5f3ee;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; height: 100%; overflow: hidden;
+    background: var(--bleu-nuit); font-family: 'Georgia', 'Times New Roman', serif;
+    color: var(--blanc); user-select: none;
+  }
+  #game-wrap { position: relative; width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; }
+  canvas { background: var(--bleu-nuit-clair); max-width: 100vw; max-height: 100vh; display: block; touch-action: none; }
+
+  #title-screen {
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at center, var(--bleu-nuit-clair) 0%, var(--bleu-nuit) 100%);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    z-index: 20; text-align: center; padding: 24px;
+  }
+  #title-screen h1 { font-size: clamp(2.4rem, 9vw, 4.2rem); letter-spacing: 0.06em; margin: 0; color: var(--or); text-shadow: 0 0 18px rgba(212,175,55,0.45); font-weight: normal; }
+  #title-screen .sous-titre { margin-top: 6px; font-size: clamp(0.85rem, 3vw, 1.1rem); letter-spacing: 0.35em; color: var(--blanc); opacity: 0.65; }
+  #title-screen .ligne-or { width: 60px; height: 2px; background: var(--or); margin: 22px 0; }
+  #start-btn { background: var(--or); color: var(--bleu-nuit); border: none; padding: 14px 38px; font-size: 1.05rem; font-family: inherit; letter-spacing: 0.08em; border-radius: 2px; cursor: pointer; }
+  #start-btn:active { transform: scale(0.96); }
+  .instructions { margin-top: 18px; font-size: 0.8rem; color: var(--blanc); opacity: 0.5; max-width: 340px; }
+
+  #hud { position: absolute; top: 0; left: 0; right: 0; display: flex; justify-content: center; align-items: center; gap: 8px; padding: 14px; z-index: 5; pointer-events: none; }
+  #room-label, #credits-label {
+    background: rgba(10,25,47,0.72); border: 1px solid var(--or); color: var(--or-clair);
+    padding: 6px 18px; font-size: 0.9rem; letter-spacing: 0.1em; border-radius: 2px;
+  }
+
+  #shop-btn {
+    position: absolute; top: 14px; right: 14px; z-index: 6;
+    background: var(--or); color: var(--bleu-nuit); border: none;
+    padding: 10px 16px; font-family: inherit; font-size: 0.85rem; letter-spacing: 0.06em; border-radius: 4px;
+  }
+  #shop-btn:active { transform: scale(0.95); }
+
+  #transition-btn {
+    position: absolute; top: 14px; left: 14px; z-index: 6;
+    background: var(--or-clair); color: var(--bleu-nuit); border: none;
+    padding: 10px 16px; font-family: inherit; font-size: 0.85rem; letter-spacing: 0.05em; border-radius: 4px;
+  }
+  #transition-btn:active { transform: scale(0.95); }
+
+  #toast {
+    position: absolute; bottom: 100px; left: 0; right: 0; display: flex; justify-content: center; z-index: 7;
+  }
+  #toast-inner {
+    background: rgba(10,25,47,0.9); border: 1px solid var(--or); color: var(--or-clair);
+    padding: 8px 18px; border-radius: 4px; font-size: 0.82rem;
+  }
+
+  #place-banner { position: absolute; bottom: 100px; left: 0; right: 0; display: flex; justify-content: center; z-index: 6; }
+  #place-banner-inner {
+    background: rgba(10,25,47,0.85); border: 1px solid var(--or); color: var(--or-clair);
+    padding: 8px 16px; border-radius: 4px; font-size: 0.82rem; display: flex; align-items: center; gap: 12px;
+  }
+  #cancel-place { background: transparent; border: 1px solid var(--or-clair); color: var(--or-clair); border-radius: 3px; padding: 3px 10px; font-size: 0.75rem; }
+
+  #shop-panel {
+    position: absolute; inset: 0; background: rgba(8,18,33,0.92); z-index: 15;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px;
+  }
+  #shop-panel h2 { color: var(--or); letter-spacing: 0.1em; font-weight: normal; margin-bottom: 18px; font-size: 1.3rem; }
+  #shop-grid { display: grid; grid-template-columns: repeat(3, 96px); gap: 12px; max-width: 340px; }
+  .shop-item {
+    background: var(--bleu-nuit-clair); border: 1px solid var(--or); border-radius: 6px;
+    padding: 10px 6px; display: flex; flex-direction: column; align-items: center; gap: 6px;
+    color: var(--or-clair); font-size: 0.72rem; text-align: center;
+  }
+  .shop-item .swatch { width: 36px; height: 26px; border-radius: 4px; }
+  .shop-item:active { background: rgba(212,175,55,0.25); }
+  #close-shop { margin-top: 22px; background: transparent; border: 1px solid var(--or); color: var(--or-clair); padding: 8px 24px; border-radius: 4px; font-family: inherit; letter-spacing: 0.06em; }
+
+  #touch-controls { position: absolute; bottom: 22px; left: 0; right: 0; display: flex; justify-content: center; z-index: 5; }
+  #dpad { display: grid; grid-template-columns: 56px 56px 56px; grid-template-rows: 56px 56px 56px; gap: 4px; }
+  .dbtn { background: rgba(212,175,55,0.18); border: 1px solid var(--or); color: var(--or-clair); border-radius: 8px; font-size: 1.3rem; display: flex; align-items: center; justify-content: center; touch-action: none; }
+  .dbtn:active { background: rgba(212,175,55,0.4); }
+  #up { grid-column: 2; grid-row: 1; } #left { grid-column: 1; grid-row: 2; }
+  #right { grid-column: 3; grid-row: 2; } #down { grid-column: 2; grid-row: 3; }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div id="game-wrap">
+  <canvas id="game" width="800" height="600"></canvas>
+
+  <div id="hud">
+    <div id="room-label">Katye 3</div>
+    <div id="credits-label" class="hidden">💰 0</div>
+  </div>
+  <button id="transition-btn" class="hidden"></button>
+  <button id="shop-btn" class="hidden">🛋️ Meubles</button>
+
+  <div id="toast" class="hidden"><div id="toast-inner"></div></div>
+
+  <div id="place-banner" class="hidden">
+    <div id="place-banner-inner">
+      <span id="place-banner-text">Tape sur le sol pour poser</span>
+      <button id="cancel-place">Annuler</button>
+    </div>
+  </div>
+
+  <div id="touch-controls">
+    <div id="dpad">
+      <div class="dbtn" id="up">▲</div>
+      <div class="dbtn" id="left">◀</div>
+      <div class="dbtn" id="right">▶</div>
+      <div class="dbtn" id="down">▼</div>
+    </div>
+  </div>
+
+  <div id="shop-panel" class="hidden">
+    <h2>CHOISIR UN MEUBLE</h2>
+    <div id="shop-grid"></div>
+    <button id="close-shop">Fermer</button>
+  </div>
+
+  <div id="title-screen">
+    <h1>VILLA DELUXE</h1>
+    <div class="sous-titre">UNE VILLE ENTIÈRE À EXPLORER</div>
+    <div class="ligne-or"></div>
+    <button id="start-btn">Explorer la ville</button>
+    <div class="instructions">Déplace-toi avec les flèches, WASD, ou les boutons tactiles. Approche-toi d'une maison pour l'acheter, ou d'un bâtiment public pour le visiter. Rejoins ta villa dans Katye 3 pour entrer.</div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  const COL = {
+    or: '#d4af37', orClair: '#f0d878',
+    bleuNuit: '#0a192f', bleuNuitClair: '#132a4a', blanc: '#f5f3ee',
+    sol: '#1c3a5e', solClair: '#22456e', eau: '#1a5276',
+    residentiel: '#e0c169', business: '#b23b3b', commerce: '#d98a3d',
+    education: '#3a6ea8', sante: '#a83232', industriel: '#7d5ba6',
+    aeroport: '#6b6b6b', parc: '#4f8f4f'
+  };
+
+  // ================= VILLE =================
+  const worldW = 1600, worldH = 1000;
+
+  const zones = [
+    { name: 'Aéroport International', x: 0,    y: 0,   w: 300, h: 260, color: COL.aeroport },
+    { name: 'Katye 1',                 x: 320,  y: 0,   w: 200, h: 260, color: COL.residentiel },
+    { name: 'Parc Récréation Nord',    x: 540,  y: 0,   w: 220, h: 260, color: COL.parc },
+    { name: 'Katye 2',                  x: 780,  y: 0,   w: 200, h: 260, color: COL.residentiel },
+    { name: 'Zone Industrielle',        x: 1000, y: 0,   w: 600, h: 260, color: COL.industriel },
+
+    { name: 'Katye 3',                  x: 0,    y: 280, w: 300, h: 280, color: COL.residentiel },
+    { name: 'Parc Central',             x: 320,  y: 280, w: 300, h: 280, color: COL.parc },
+    { name: 'Centre-Ville',             x: 640,  y: 280, w: 300, h: 280, color: COL.business },
+    { name: 'Plaza Civique',            x: 960,  y: 280, w: 200, h: 280, color: '#8a5a5a' },
+    { name: 'Katye 4',                  x: 1180, y: 280, w: 420, h: 280, color: COL.residentiel },
+
+    { name: 'Katye 5',                  x: 0,    y: 580, w: 300, h: 220, color: COL.residentiel },
+    { name: 'Zone Éducation',           x: 320,  y: 580, w: 300, h: 220, color: COL.education },
+    { name: 'Hôpital Central',          x: 640,  y: 580, w: 300, h: 220, color: COL.sante },
+    { name: 'Centre Médical',           x: 960,  y: 580, w: 200, h: 220, color: COL.sante },
+    { name: 'Katye 6',                  x: 1180, y: 580, w: 420, h: 220, color: COL.residentiel },
+
+    { name: 'Katye 7',                  x: 0,    y: 820, w: 300, h: 180, color: COL.residentiel },
+    { name: 'Marché Central',           x: 320,  y: 820, w: 300, h: 180, color: COL.commerce },
+    { name: 'Zone Commerce',            x: 640,  y: 820, w: 300, h: 180, color: COL.business },
+    { name: 'Marché Moderne',           x: 960,  y: 820, w: 200, h: 180, color: COL.commerce },
+    { name: 'Katye 8',                  x: 1180, y: 820, w: 420, h: 180, color: COL.residentiel }
+  ];
+
+  // maisons achetables (la première est offerte, c'est celle du joueur au départ)
+  const houses = [
+    { id: 'h0', name: 'Ma Villa (Katye 3)', x: 150, y: 470, price: 0,    owned: true,  furniture: [] },
+    { id: 'h1', name: 'Maison Katye 1',     x: 420, y: 140, price: 1200, owned: false, furniture: [] },
+    { id: 'h2', name: 'Maison Katye 5',     x: 150, y: 690, price: 900,  owned: false, furniture: [] },
+    { id: 'h3', name: 'Maison Katye 7',     x: 150, y: 920, price: 1500, owned: false, furniture: [] }
+  ];
+
+  // bâtiments publics visitables
+  const publicBuildings = [
+    { id: 'hopital',  name: 'Hôpital Central', x: 790, y: 700, color: COL.sante,     desc: "Un hôpital moderne au service de toute la ville." },
+    { id: 'marche',   name: 'Marché Central',  x: 470, y: 920, color: COL.commerce,  desc: "Un marché animé où on trouve fruits, légumes et artisanat local." },
+    { id: 'ecole',    name: 'Zone Éducation',  x: 470, y: 700, color: COL.education, desc: "Un centre de formation professionnelle pour les habitants." },
+    { id: 'commerce', name: 'Zone Commerce',   x: 790, y: 920, color: COL.business,  desc: "Le quartier d'affaires : bureaux, banques et boutiques." }
+  ];
+
+  // ================= VILLA (intérieur) =================
+  const rooms = [
+    { name: 'Entrée',        x: 340, y: 460, w: 120, h: 110, color: COL.sol },
+    { name: 'Salon',         x: 40,  y: 260, w: 300, h: 200, color: COL.solClair },
+    { name: 'Cuisine',       x: 40,  y: 40,  w: 220, h: 200, color: COL.sol },
+    { name: 'Chambre',       x: 460, y: 40,  w: 300, h: 200, color: COL.solClair },
+    { name: 'Salle de bain', x: 460, y: 260, w: 150, h: 180, color: COL.sol },
+    { name: 'Terrasse',      x: 620, y: 260, w: 140, h: 180, color: COL.solClair },
+    { name: 'Piscine',       x: 340, y: 40,  w: 200, h: 200, color: COL.eau }
+  ];
+  const villaBounds = { x: 40, y: 40, w: 720, h: 530 };
+  const decorFurniture = [ { x: 60, y: 60, w: 100, h: 40, label: 'Cuisine' } ];
+
+  const catalog = [
+    { type: 'Canapé',    w: 90,  h: 40, color: COL.or },
+    { type: 'Fauteuil',  w: 50,  h: 50, color: COL.or },
+    { type: 'Table',     w: 60,  h: 60, color: COL.or },
+    { type: 'Lit',       w: 100, h: 60, color: COL.or },
+    { type: 'Étagère',   w: 40,  h: 80, color: COL.or },
+    { type: 'Plante',    w: 30,  h: 30, color: '#3f6b3f' },
+    { type: 'Tapis',     w: 100, h: 70, color: '#8a2f2f' },
+    { type: 'TV',        w: 70,  h: 20, color: '#222' }
+  ];
+  let placedFurniture = [];
+  let nextId = 1;
+  let mode = null, pendingType = null, movingItem = null;
+
+  // ================= ÉTAT COMMUN =================
+  let scene = 'city'; // 'city' | 'villa' | 'public'
+  let credits = 5000;
+  let activeHouse = null;
+  let activeBuilding = null;
+  let returnPos = { x: houses[0].x, y: houses[0].y + 70 };
+
+  const player = { x: houses[0].x, y: houses[0].y + 70, r: 14, speed: 3.5 };
+  const keys = {};
+  let currentLabel = 'Katye 3';
+  let camX = 0, camY = 0;
+
+  const roomLabelEl = document.getElementById('room-label');
+  const creditsLabelEl = document.getElementById('credits-label');
+  const shopBtn = document.getElementById('shop-btn');
+  const transitionBtn = document.getElementById('transition-btn');
+  const toastEl = document.getElementById('toast');
+  const toastInnerEl = document.getElementById('toast-inner');
+  let toastTimer = null;
+
+  function showToast(text, ms) {
+    toastInnerEl.textContent = text;
+    toastEl.classList.remove('hidden');
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.add('hidden'), ms || 1600);
+  }
+
+  function pointInRect(px, py, r) { return px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h; }
+  function clamp(v, min, max) { return Math.min(Math.max(v, min), max); }
+
+  function drawRoundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function nearestTarget() {
+    let best = null, bestDist = 60;
+    houses.forEach(h => {
+      const d = Math.hypot(player.x - h.x, player.y - h.y);
+      if (d < bestDist) { bestDist = d; best = { kind: 'house', obj: h }; }
+    });
+    publicBuildings.forEach(b => {
+      const d = Math.hypot(player.x - b.x, player.y - b.y);
+      if (d < bestDist) { bestDist = d; best = { kind: 'public', obj: b }; }
+    });
+    return best;
+  }
+
+  function updateTransitionButton() {
+    if (scene === 'city') {
+      const t = nearestTarget();
+      if (!t) { transitionBtn.classList.add('hidden'); return; }
+      if (t.kind === 'house') {
+        transitionBtn.textContent = t.obj.owned ? 'Entrer' : ('Acheter (' + t.obj.price + ' crédits)');
+      } else {
+        transitionBtn.textContent = 'Visiter';
+      }
+      transitionBtn.dataset.kind = t.kind;
+      transitionBtn.dataset.id = t.obj.id;
+      transitionBtn.classList.remove('hidden');
+    } else if (scene === 'villa') {
+      if (currentLabel === 'Entrée') {
+        transitionBtn.textContent = 'Sortir de la villa';
+        transitionBtn.classList.remove('hidden');
+      } else transitionBtn.classList.add('hidden');
+    } else if (scene === 'public') {
+      transitionBtn.textContent = 'Sortir';
+      transitionBtn.classList.remove('hidden');
+    }
+  }
+
+  transitionBtn.addEventListener('click', () => {
+    if (scene === 'city') {
+      const kind = transitionBtn.dataset.kind;
+      const id = transitionBtn.dataset.id;
+      if (kind === 'house') {
+        const house = houses.find(h => h.id === id);
+        if (!house) return;
+        if (house.owned) {
+          activeHouse = house;
+          placedFurniture = house.furniture;
+          mode = null; pendingType = null; movingItem = null;
+          returnPos = { x: house.x, y: house.y + 70 };
+          scene = 'villa';
+          player.x = 400; player.y = 520;
+          shopBtn.classList.remove('hidden');
+          roomLabelEl.textContent = 'Entrée';
+        } else {
+          if (credits >= house.price) {
+            credits -= house.price;
+            house.owned = true;
+            showToast(house.name + ' achetée !');
+          } else {
+            showToast('Pas assez de crédits (' + house.price + ' requis)');
+          }
+        }
+      } else if (kind === 'public') {
+        const b = publicBuildings.find(x => x.id === id);
+        if (!b) return;
+        activeBuilding = b;
+        returnPos = { x: b.x, y: b.y + 70 };
+        scene = 'public';
+      }
+    } else if (scene === 'villa') {
+      scene = 'city';
+      player.x = returnPos.x; player.y = returnPos.y;
+      shopBtn.classList.add('hidden');
+      document.getElementById('shop-panel').classList.add('hidden');
+      mode = null; pendingType = null; movingItem = null;
+      document.getElementById('place-banner').classList.add('hidden');
+    } else if (scene === 'public') {
+      scene = 'city';
+      player.x = returnPos.x; player.y = returnPos.y;
+    }
+    transitionBtn.classList.add('hidden');
+  });
+
+  // ================= UPDATE =================
+  function readMove() {
+    let dx = 0, dy = 0;
+    if (keys['ArrowUp'] || keys['w'] || keys['up']) dy -= 1;
+    if (keys['ArrowDown'] || keys['s'] || keys['down']) dy += 1;
+    if (keys['ArrowLeft'] || keys['a'] || keys['left']) dx -= 1;
+    if (keys['ArrowRight'] || keys['d'] || keys['right']) dx += 1;
+    return { dx, dy };
+  }
+
+  function updateCity() {
+    const { dx, dy } = readMove();
+    if (dx !== 0 || dy !== 0) {
+      const len = Math.hypot(dx, dy);
+      player.x = clamp(player.x + (dx / len) * player.speed, player.r, worldW - player.r);
+      player.y = clamp(player.y + (dy / len) * player.speed, player.r, worldH - player.r);
+    }
+    for (const z of zones) { if (pointInRect(player.x, player.y, z)) { currentLabel = z.name; break; } }
+    camX = clamp(player.x - W / 2, 0, worldW - W);
+    camY = clamp(player.y - H / 2, 0, worldH - H);
+    roomLabelEl.textContent = currentLabel;
+    creditsLabelEl.textContent = '💰 ' + credits;
+    creditsLabelEl.classList.remove('hidden');
+    updateTransitionButton();
+  }
+
+  function updateVilla() {
+    const { dx, dy } = readMove();
+    if (dx !== 0 || dy !== 0) {
+      const len = Math.hypot(dx, dy);
+      player.x = clamp(player.x + (dx / len) * player.speed, villaBounds.x + player.r, villaBounds.x + villaBounds.w - player.r);
+      player.y = clamp(player.y + (dy / len) * player.speed, villaBounds.y + player.r, villaBounds.y + villaBounds.h - player.r);
+    }
+    for (const r of rooms) { if (pointInRect(player.x, player.y, r)) { currentLabel = r.name; break; } }
+    roomLabelEl.textContent = currentLabel + (activeHouse ? ' — ' + activeHouse.name : '');
+    creditsLabelEl.classList.add('hidden');
+    updateTransitionButton();
+  }
+
+  function updatePublic() {
+    roomLabelEl.textContent = activeBuilding ? activeBuilding.name : '';
+    creditsLabelEl.classList.add('hidden');
+    updateTransitionButton();
+  }
+
+  // ================= RENDER =================
+  function drawMarker(x, y, emoji, label, color) {
+    ctx.beginPath();
+    ctx.arc(x, y, 20, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.strokeStyle = COL.bleuNuit;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.font = '16px Georgia';
+    ctx.textAlign = 'center';
+    ctx.fillText(emoji, x, y + 6);
+    ctx.font = '11px Georgia';
+    ctx.fillStyle = COL.orClair;
+    ctx.fillText(label, x, y - 28);
+    ctx.textAlign = 'left';
+  }
+
+  function renderCity() {
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = '#081527';
+    ctx.fillRect(0, 0, W, H);
+    ctx.save();
+    ctx.translate(-camX, -camY);
+
+    zones.forEach(z => {
+      ctx.fillStyle = z.color;
+      ctx.fillRect(z.x, z.y, z.w, z.h);
+      ctx.strokeStyle = 'rgba(212,175,55,0.4)';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(z.x, z.y, z.w, z.h);
+      ctx.fillStyle = 'rgba(10,25,47,0.75)';
+      ctx.font = '13px Georgia';
+      ctx.fillText(z.name.toUpperCase(), z.x + 10, z.y + 20);
+    });
+
+    houses.forEach(h => {
+      drawMarker(h.x, h.y, '🏠', h.owned ? h.name : (h.name + ' · ' + h.price + '💰'), h.owned ? COL.orClair : '#c9c9c9');
+    });
+    publicBuildings.forEach(b => {
+      drawMarker(b.x, b.y, '🏛️', b.name, b.color);
+    });
+
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, player.r, 0, Math.PI * 2);
+    ctx.fillStyle = COL.orClair;
+    ctx.fill();
+    ctx.strokeStyle = COL.blanc;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  function renderVilla() {
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = '#081527';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = COL.bleuNuitClair;
+    ctx.fillRect(villaBounds.x, villaBounds.y, villaBounds.w, villaBounds.h);
+
+    rooms.forEach(r => {
+      ctx.fillStyle = r.color;
+      ctx.fillRect(r.x, r.y, r.w, r.h);
+      ctx.strokeStyle = 'rgba(212,175,55,0.55)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(r.x, r.y, r.w, r.h);
+      ctx.fillStyle = 'rgba(240,216,120,0.55)';
+      ctx.font = '13px Georgia';
+      ctx.fillText(r.name.toUpperCase(), r.x + 10, r.y + 20);
+    });
+
+    decorFurniture.forEach(f => {
+      ctx.fillStyle = COL.or;
+      drawRoundRect(f.x, f.y, f.w, f.h, 6);
+      ctx.fill();
+      ctx.fillStyle = COL.bleuNuit;
+      ctx.font = '10px Georgia';
+      ctx.textAlign = 'center';
+      ctx.fillText(f.label, f.x + f.w / 2, f.y + f.h / 2 + 4);
+      ctx.textAlign = 'left';
+    });
+
+    placedFurniture.forEach(f => {
+      const isMoving = movingItem && movingItem.id === f.id;
+      ctx.globalAlpha = isMoving ? 0.55 : 1;
+      ctx.fillStyle = f.color;
+      drawRoundRect(f.x - f.w / 2, f.y - f.h / 2, f.w, f.h, 6);
+      ctx.fill();
+      ctx.strokeStyle = isMoving ? COL.blanc : 'rgba(0,0,0,0.3)';
+      ctx.lineWidth = isMoving ? 2 : 1;
+      ctx.stroke();
+      ctx.fillStyle = COL.bleuNuit;
+      ctx.font = '10px Georgia';
+      ctx.textAlign = 'center';
+      ctx.fillText(f.type, f.x, f.y + 4);
+      ctx.textAlign = 'left';
+      ctx.globalAlpha = 1;
+    });
+
+    ctx.strokeStyle = COL.or;
+    ctx.lineWidth = 4;
+    ctx.strokeRect(villaBounds.x, villaBounds.y, villaBounds.w, villaBounds.h);
+
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, player.r, 0, Math.PI * 2);
+    ctx.fillStyle = COL.orClair;
+    ctx.fill();
+    ctx.strokeStyle = COL.blanc;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  function wrapText(text, x, y, maxWidth, lineHeight) {
+    const words = text.split(' ');
+    let line = '';
+    let yy = y;
+    for (let i = 0; i < words.length; i++) {
+      const test = line + words[i] + ' ';
+      if (ctx.measureText(test).width > maxWidth && i > 0) {
+        ctx.fillText(line, x, yy);
+        line = words[i] + ' ';
+        yy += lineHeight;
+      } else line = test;
+    }
+    ctx.fillText(line, x, yy);
+  }
+
+  function renderPublic() {
+    ctx.clearRect(0, 0, W, H);
+    const b = activeBuilding;
+    ctx.fillStyle = b ? b.color : COL.bleuNuitClair;
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = 'rgba(10,25,47,0.55)';
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.fillStyle = COL.orClair;
+    ctx.font = '28px Georgia';
+    ctx.textAlign = 'center';
+    ctx.fillText(b ? b.name : '', W / 2, H / 2 - 60);
+
+    ctx.font = '15px Georgia';
+    ctx.fillStyle = COL.blanc;
+    ctx.textAlign = 'left';
+    if (b) wrapText(b.desc, W / 2 - 220, H / 2, 440, 24);
+    ctx.textAlign = 'left';
+  }
+
+  function loop() {
+    if (scene === 'city') { updateCity(); renderCity(); }
+    else if (scene === 'villa') { updateVilla(); renderVilla(); }
+    else { updatePublic(); renderPublic(); }
+    requestAnimationFrame(loop);
+  }
+
+  // ================= CONTRÔLES =================
+  window.addEventListener('keydown', e => { keys[e.key] = true; });
+  window.addEventListener('keyup', e => { keys[e.key] = false; });
+
+  function bindTouch(id, key) {
+    const el = document.getElementById(id);
+    const on = e => { e.preventDefault(); keys[key] = true; };
+    const off = e => { e.preventDefault(); keys[key] = false; };
+    el.addEventListener('touchstart', on);
+    el.addEventListener('touchend', off);
+    el.addEventListener('touchcancel', off);
+    el.addEventListener('mousedown', on);
+    el.addEventListener('mouseup', off);
+    el.addEventListener('mouseleave', off);
+  }
+  bindTouch('up', 'up'); bindTouch('down', 'down'); bindTouch('left', 'left'); bindTouch('right', 'right');
+
+  document.getElementById('start-btn').addEventListener('click', () => {
+    document.getElementById('title-screen').classList.add('hidden');
+  });
+
+  // ================= BOUTIQUE (villa uniquement) =================
+  const shopPanel = document.getElementById('shop-panel');
+  const shopGrid = document.getElementById('shop-grid');
+  const placeBanner = document.getElementById('place-banner');
+  const placeBannerText = document.getElementById('place-banner-text');
+
+  catalog.forEach(item => {
+    const el = document.createElement('div');
+    el.className = 'shop-item';
+    el.innerHTML = '<div class="swatch" style="background:' + item.color + '"></div><span>' + item.type + '</span>';
+    el.addEventListener('click', () => {
+      pendingType = item; movingItem = null; mode = 'placing-new';
+      shopPanel.classList.add('hidden');
+      placeBannerText.textContent = 'Tape sur le sol pour poser : ' + item.type;
+      placeBanner.classList.remove('hidden');
+    });
+    shopGrid.appendChild(el);
+  });
+
+  shopBtn.addEventListener('click', () => { shopPanel.classList.remove('hidden'); });
+  document.getElementById('close-shop').addEventListener('click', () => { shopPanel.classList.add('hidden'); });
+  document.getElementById('cancel-place').addEventListener('click', () => {
+    mode = null; pendingType = null; movingItem = null;
+    placeBanner.classList.add('hidden');
+  });
+
+  function canvasCoordsFromEvent(clientX, clientY) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+  }
+
+  function hitTestPlaced(x, y) {
+    for (let i = placedFurniture.length - 1; i >= 0; i--) {
+      const f = placedFurniture[i];
+      if (x >= f.x - f.w / 2 && x <= f.x + f.w / 2 && y >= f.y - f.h / 2 && y <= f.y + f.h / 2) return f;
+    }
+    return null;
+  }
+
+  function handleCanvasTap(x, y) {
+    if (scene !== 'villa') return;
+    if (mode === 'placing-new' && pendingType) {
+      const nx = clamp(x, villaBounds.x + pendingType.w / 2, villaBounds.x + villaBounds.w - pendingType.w / 2);
+      const ny = clamp(y, villaBounds.y + pendingType.h / 2, villaBounds.y + villaBounds.h - pendingType.h / 2);
+      placedFurniture.push({ id: nextId++, type: pendingType.type, w: pendingType.w, h: pendingType.h, color: pendingType.color, x: nx, y: ny });
+      mode = null; pendingType = null;
+      placeBanner.classList.add('hidden');
+      return;
+    }
+    if (mode === 'moving' && movingItem) {
+      const nx = clamp(x, villaBounds.x + movingItem.w / 2, villaBounds.x + villaBounds.w - movingItem.w / 2);
+      const ny = clamp(y, villaBounds.y + movingItem.h / 2, villaBounds.y + villaBounds.h - movingItem.h / 2);
+      movingItem.x = nx; movingItem.y = ny;
+      movingItem = null; mode = null;
+      placeBanner.classList.add('hidden');
+      return;
+    }
+    const hit = hitTestPlaced(x, y);
+    if (hit) {
+      movingItem = hit; mode = 'moving';
+      placeBannerText.textContent = 'Tape où poser : ' + hit.type;
+      placeBanner.classList.remove('hidden');
+    }
+  }
+
+  canvas.addEventListener('click', e => {
+    const c = canvasCoordsFromEvent(e.clientX, e.clientY);
+    handleCanvasTap(c.x, c.y);
+  });
+  canvas.addEventListener('touchstart', e => {
+    if (e.touches.length !== 1) return;
+    e.preventDefault();
+    const t = e.touches[0];
+    const c = canvasCoordsFromEvent(t.clientX, t.clientY);
+    handleCanvasTap(c.x, c.y);
+  }, { passive: false });
+
+  renderCity();
+  loop();
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+  }
+})();
+</script>
+
+</body>
+</html>
